@@ -26,6 +26,13 @@ There are many breaking changes in support:
   `ValueTyped<'static, ...>`, etc.
 - **`Freeze` is branded and has a GAT**. Generally, `impl<'v> Freeze<'v> for MyComplexValue<'v>`,
   with `type Frozen<'fv> = MyComplexValue<'fv>;`
+- **`UnpackList`, `UnpackListOrTuple`, `UnpackTuple`, `UnpackDictEntries` and `UnpackSetEntries`
+  removed**, along with the `UnpackValue` impls for `SmallMap`, `BTreeMap` and
+  `MiniMutInsertionMap`. Parameters take the handles `ValueOf<'v, ListType<T>>`,
+  `ValueOf<'v, ListOrTupleType<T>>`, `ValueOf<'v, TupleType<T>>`, `ValueOf<'v, DictType<K, V>>` and
+  `ValueOf<'v, SetType<T>>`, which borrow the Starlark collection; `try_items()` and
+  `try_to_vec()` give the unpacked items, and `ValueOf::empty_list()` / `ValueOf::empty_dict()`
+  are the defaults.
 - Many, many breaking changes to other APIs downstream of these.
 
 Thanks to @danielhenrymantilla for discussion and feedback on the design of these APIs.
