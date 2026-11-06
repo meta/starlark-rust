@@ -32,7 +32,7 @@ dupe = { version = "0.9.1", git = "https://github.com/facebook/buck2.git", branc
 either = "1.19.0"
 equivalent = "1.0.3"
 erased-serde = "0.4.11"
-globset = { version = "0.4.20", features = ["serde1"] }
+globset = { version = "0.4.21", features = ["serde1"] }
 hashbrown = "0.17.1"
 inventory = "0.3.25"
 itertools = "0.15.0"
