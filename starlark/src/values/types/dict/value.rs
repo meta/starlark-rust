@@ -609,7 +609,17 @@ impl<'v, T: DictLike<'v>> Serialize for DictGen<T> {
     where
         S: serde::Serializer,
     {
-        serializer.collect_map(self.0.content().iter())
+        let content = self.0.content();
+        // JSON object keys are strings, and `serde_json` writes an int, bool or float key as its
+        // string form, so `{1: "a", "1": "b"}` would come out with the key `"1"` twice. Refuse
+        // anything but a string key, as starlark-go's `json.encode` does.
+        if let Some((key, _)) = content.iter().find(|(key, _)| !key.is_str()) {
+            return Err(serde::ser::Error::custom(format!(
+                "dict has `{}` key, want string",
+                key.get_type()
+            )));
+        }
+        serializer.collect_map(content.iter())
     }
 }
 
@@ -660,5 +670,29 @@ b1 and b2 and b3
     fn test_repr_cycle() {
         assert::eq("d = {}; d[17] = d; repr(d)", "'{17: {...}}'");
         assert::eq("d = {}; d[17] = d; str(d)", "'{17: {...}}'");
+    }
+
+    #[test]
+    fn test_json_encode_non_string_key() {
+        assert::eq(
+            r#"json.encode({"a": 1, "b": {"c": [2]}})"#,
+            r#"'{"a":1,"b":{"c":[2]}}'"#,
+        );
+        assert::fail("json.encode({1: 2})", "dict has `int` key, want string");
+        assert::fail("json.encode({True: 2})", "dict has `bool` key, want string");
+        assert::fail("json.encode({1.5: 2})", "dict has `float` key, want string");
+        // Would otherwise encode as `{"1":"a","1":"b"}`.
+        assert::fail(
+            r#"json.encode([{1: "a", "1": "b"}])"#,
+            "dict has `int` key, want string",
+        );
+
+        // Frozen dicts go through the same check.
+        let value = assert::pass("{1: 2}");
+        let err = value.by_ref(|v| v.to_json_value()).unwrap_err();
+        assert!(
+            err.to_string().contains("dict has `int` key, want string"),
+            "{err}"
+        );
     }
 }
