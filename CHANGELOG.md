@@ -50,6 +50,53 @@ Thanks to @danielhenrymantilla for discussion and feedback on the design of thes
 ### New APIs
 
 - `FreezeDynamic` for value-based freeze
+- Add Rust record construction (`RecordType::new`, `Record::alloc`) and export `RecordTypeMatcher`.
+- Add `#[starlark(doc_hidden)]`, `Assert::always_gc` and runtime type-error classification.
+- Add `Freeze` for `Either` and Starlark trait implementations for `MiniVec`, `MiniBoxSlice` and `mini_map` types.
+
+### Reworked types and representations
+
+- Split `StarlarkType` from its `StarlarkValue` representations; add `StarlarkRepresentations` and remove `Canonical`.
+- Replace `StarlarkTypeRepr` with `StarlarkTypeExpr`; `AllocValue` / `UnpackValue` specify `type Type`.
+- Make `ValueOf<T>` a checked handle accessed with `get()`; remove unchecked handles and `ValueOf::unpack()`.
+- Return handles from `Heap::alloc`; use `.to_value()` for `Value` and `heap.alloc(recipe)` instead of specialized allocators.
+- Stop generating `UnpackValue` implementations for `&T` in `#[starlark_value]`.
+- Support typed operator signatures in `StarlarkValue`; remove `bin_op_ty`.
+- Remove exported `Dict`, and `ListRef::TYPE` / `TupleRef::TYPE`.
+
+### Other breaking API changes
+
+- Rebase `SmallMap` / `SmallSet` on `mini_map`; remove `sorted_map`, `sorted_set` and `vec2`; change hash values.
+- Change `TypeExprUnpackP::Index` to contain `Spanned<TypePathP>`.
+- Reject conflicting `#[starlark(...)]` parameter attributes instead of silently ignoring them.
+
+### Language and behaviour
+
+- Add keyword-only `print(..., sep=...)`; make `bytes.elems()` an opaque integer iterable.
+- Add set difference (`-`) and symmetric difference (`^`) and their methods.
+- Support heterogeneous `tuple[A, B]` types and dotted type subscripts such as `a.B[C]`.
+- Require actual types in `eval_type()` / `isinstance()`; reject legacy list type syntax `[A, B]`.
+- Reject underscores in `int()` and leading zeroes with base 0; reject empty `split` / `rsplit` separators.
+- Align string case predicates and `title()` with the spec's cased-letter rules.
+- Correct scientific float formatting, `%d` on finite floats, and errors for out-of-range int-to-float conversions.
+- Promote overflowing left shifts to big integers; make equal big integers and floats hash equally.
+- Preserve integers beyond 64 bits in JSON; type-check record defaults when used and hash record types by identity.
+
+### Fixes and performance
+
+- Return errors for `d.update([d])`, deeply nested JSON, corrupt spans and arithmetic at index/range boundaries.
+- Propagate equality errors from `list.remove`; allow garbage collection between evaluations without aborting.
+- Fix constant-slice, empty-loop, type-test and keyed `min` / `max` optimizations and fast-path string formatting.
+- Fix mixed numeric typechecking, native type constructors, implicit preludes and invalid-call diagnostics.
+- Fix bytes literals after commas, misplaced `/` diagnostics and AST display round-tripping.
+- Fix heap, arena, array and evaluator soundness issues found by Miri; add strict-provenance CI coverage.
+- Share function parameter/type metadata; reduce bytecode and frozen-heap overhead and store record fields inline.
+- Use linear-time substring search and improve string stripping/joining, bytes repr and big-integer parsing.
+
+### LSP and tooling
+
+- Fix UTF-16 LSP positions, implicit Bazel target names and DAP handling of missing arguments, read-only installs and EOF.
+- Update VS Code dependencies and generate Cargo manifests, dependency versions and lint settings with autocargo.
 
 ## 0.14 (May 20, 2026)
 
