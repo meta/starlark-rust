@@ -184,6 +184,8 @@ typed_operators_or_none! {
     radd => typed_radd;
     mul => typed_mul;
     rmul => typed_rmul;
+    rsub => typed_rsub;
+    rdiv => typed_rdiv;
 }
 
 /// The operators that are an error for a value they do not take. For each, the trait's method
