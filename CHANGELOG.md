@@ -1,6 +1,6 @@
 # Starlark
 
-## Unreleased
+## 0.15.0 (Nov 19, 2026)
 
 ### Reworked freezing, values, and lifetimes
 
