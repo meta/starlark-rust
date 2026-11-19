@@ -931,7 +931,11 @@ impl<'v> Value<'v> {
     #[inline]
     fn equals_not_ptr_eq(self, other: Value<'v>) -> crate::Result<bool> {
         let _guard = stack_guard::stack_guard()?;
-        self.get_ref().equals(other)
+        match self.get_ref().equals(other) {
+            // The left operand may not know the type of the right one (`1 == x`): ask it too.
+            Ok(false) if self.get_type() != other.get_type() => other.get_ref().equals(self),
+            r => r,
+        }
     }
 
     /// How are two values comparable. For values of different types will return [`Err`].
