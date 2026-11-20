@@ -13,7 +13,7 @@ keywords = ["starlark", "skylark", "bazel", "language", "interpreter"]
 license = "Apache-2.0"
 name = "starlark"
 repository = "https://github.com/facebook/starlark-rust"
-version = "0.14.2"
+version = "0.14.3"
 
 [features]
 default = []
