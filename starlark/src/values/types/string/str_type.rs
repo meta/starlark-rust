@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-use std::cmp;
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Debug;
@@ -53,6 +52,7 @@ use crate::values::UnpackValue;
 use crate::values::Value;
 use crate::values::ValueError;
 use crate::values::index::apply_slice;
+use crate::values::index::repeat_count;
 use crate::values::none::NoneOr;
 use crate::values::string::interpolation;
 use crate::values::string::repr::string_repr;
@@ -203,12 +203,13 @@ impl StarlarkStr {
     }
 
     /// The string `times` times over: `str * times` and `times * str`.
-    fn repeated(&self, times: i32) -> String {
-        let mut result = String::with_capacity(self.len() * cmp::max(0, times) as usize);
-        for _i in 0..times {
+    fn repeated(&self, times: i32) -> crate::Result<String> {
+        let count = repeat_count(self.len(), times)?;
+        let mut result = String::with_capacity(self.len() * count);
+        for _i in 0..count {
             result.push_str(self)
         }
-        result
+        Ok(result)
     }
 }
 
@@ -341,11 +342,11 @@ impl<'v> StarlarkValue<'v> for StarlarkStr {
         }
     }
 
-    fn mul(&self, times: i32) -> String {
+    fn mul(&self, times: i32) -> crate::Result<String> {
         self.repeated(times)
     }
 
-    fn rmul(&self, times: i32) -> String {
+    fn rmul(&self, times: i32) -> crate::Result<String> {
         self.repeated(times)
     }
 
