@@ -26,13 +26,6 @@ There are many breaking changes in support:
   `ValueTyped<'static, ...>`, etc.
 - **`Freeze` is branded and has a GAT**. Generally, `impl<'v> Freeze<'v> for MyComplexValue<'v>`,
   with `type Frozen<'fv> = MyComplexValue<'fv>;`
-- **`UnpackList`, `UnpackListOrTuple`, `UnpackTuple`, `UnpackDictEntries` and `UnpackSetEntries`
-  removed**, along with the `UnpackValue` impls for `SmallMap`, `BTreeMap` and
-  `MiniMutInsertionMap`. Parameters take the handles `ValueOf<'v, ListType<T>>`,
-  `ValueOf<'v, ListOrTupleType<T>>`, `ValueOf<'v, TupleType<T>>`, `ValueOf<'v, DictType<K, V>>` and
-  `ValueOf<'v, SetType<T>>`, which borrow the Starlark collection; `try_items()` and
-  `try_to_vec()` give the unpacked items, and `ValueOf::empty_list()` / `ValueOf::empty_dict()`
-  are the defaults.
 - Many, many breaking changes to other APIs downstream of these.
 
 Thanks to @danielhenrymantilla for discussion and feedback on the design of these APIs.
@@ -54,16 +47,6 @@ Thanks to @danielhenrymantilla for discussion and feedback on the design of thes
 - Add `#[starlark(doc_hidden)]`, `Assert::always_gc` and runtime type-error classification.
 - Add `Freeze` for `Either` and Starlark trait implementations for `MiniVec`, `MiniBoxSlice` and `mini_map` types.
 
-### Reworked types and representations
-
-- Split `StarlarkType` from its `StarlarkValue` representations; add `StarlarkRepresentations` and remove `Canonical`.
-- Replace `StarlarkTypeRepr` with `StarlarkTypeExpr`; `AllocValue` / `UnpackValue` specify `type Type`.
-- Make `ValueOf<T>` a checked handle accessed with `get()`; remove unchecked handles and `ValueOf::unpack()`.
-- Return handles from `Heap::alloc`; use `.to_value()` for `Value` and `heap.alloc(recipe)` instead of specialized allocators.
-- Stop generating `UnpackValue` implementations for `&T` in `#[starlark_value]`.
-- Support typed operator signatures in `StarlarkValue`; remove `bin_op_ty`.
-- Remove exported `Dict`, and `ListRef::TYPE` / `TupleRef::TYPE`.
-
 ### Other breaking API changes
 
 - Rebase `SmallMap` / `SmallSet` on `mini_map`; remove `sorted_map`, `sorted_set` and `vec2`; change hash values.
@@ -75,7 +58,7 @@ Thanks to @danielhenrymantilla for discussion and feedback on the design of thes
 - Add keyword-only `print(..., sep=...)`; make `bytes.elems()` an opaque integer iterable.
 - Add set difference (`-`) and symmetric difference (`^`) and their methods.
 - Support heterogeneous `tuple[A, B]` types and dotted type subscripts such as `a.B[C]`.
-- Require actual types in `eval_type()` / `isinstance()`; reject legacy list type syntax `[A, B]`.
+- Require actual types in `eval_type()` / `isinstance()`, which no longer accept the legacy list spelling `[A, B]` of a union.
 - Reject underscores in `int()` and leading zeroes with base 0; reject empty `split` / `rsplit` separators.
 - Align string case predicates and `title()` with the spec's cased-letter rules.
 - Correct scientific float formatting, `%d` on finite floats, and errors for out-of-range int-to-float conversions.
