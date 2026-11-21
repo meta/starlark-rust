@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-#[cfg(debug_assertions)]
 use std::cell::Cell;
 use std::cell::RefCell;
 
 use crate::eval::compiler::def::Def;
 use crate::values::AllocFrozenValue;
+use crate::values::FreezeError;
 use crate::values::FreezeResult;
 use crate::values::FrozenHeap;
 use crate::values::SealEdge;
@@ -28,6 +28,7 @@ use crate::values::ValueOf;
 use crate::values::ValueTyped;
 use crate::values::layout::heap::repr::AValueHeapEntryState;
 use crate::values::layout::value::Value;
+use crate::values::recursive_repr_or_json_guard::stack_is_low_at_depth;
 
 /// Copies values from the heap of `'v` onto the frozen heap of `'fv`; the argument of
 /// [`Freeze::freeze`](crate::values::Freeze::freeze).
@@ -49,6 +50,8 @@ pub struct Freezer<'v, 'fv> {
     seal_edge: SealEdge<'fv, 'v>,
     /// Defs frozen by this freezer.
     pub(crate) frozen_defs: RefCell<Vec<ValueTyped<'fv, Def<'fv>>>>,
+    /// How many values are being frozen inside one another.
+    depth: Cell<u32>,
     /// A freeze error occurred; the freezer must be abandoned.
     #[cfg(debug_assertions)]
     failed: Cell<bool>,
@@ -63,6 +66,7 @@ impl<'v, 'fv> Freezer<'v, 'fv> {
             heap,
             seal_edge,
             frozen_defs: RefCell::new(Vec::new()),
+            depth: Cell::new(0),
             #[cfg(debug_assertions)]
             failed: Cell::new(false),
         }
@@ -95,9 +99,22 @@ impl<'v, 'fv> Freezer<'v, 'fv> {
                 Ok(unsafe { x.forward_ptr().unpack_frozen_value() })
             }
             AValueHeapEntryState::Value(_) => {
-                // SAFETY: just checked to be a live value.
-                let v = unsafe { value.0.value_header_ptr_unchecked() };
-                let result = unsafe { v.unpack().heap_freeze(self) };
+                // Freezing a value freezes what it contains through here, so a deeply nested
+                // value would otherwise recurse until the native stack runs out.
+                let depth = self.depth.get();
+                let result = if stack_is_low_at_depth(depth) {
+                    Err(FreezeError::new(format!(
+                        "Value of type `{}` is nested too deeply to freeze without running out of stack",
+                        value.get_type()
+                    )))
+                } else {
+                    self.depth.set(depth + 1);
+                    // SAFETY: just checked to be a live value.
+                    let v = unsafe { value.0.value_header_ptr_unchecked() };
+                    let result = unsafe { v.unpack().heap_freeze(self) };
+                    self.depth.set(depth);
+                    result
+                };
                 #[cfg(debug_assertions)]
                 if result.is_err() {
                     self.failed.set(true);
