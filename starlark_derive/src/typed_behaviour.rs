@@ -80,7 +80,7 @@ impl Method {
             "equals" => Shape::Equals,
             "compare" => Shape::Compare,
             "write_hash" => Shape::WriteHash,
-            "add" | "radd" | "mul" | "rmul" => Shape::OperatorOrNone,
+            "add" | "radd" | "mul" | "rmul" | "rsub" | "rdiv" => Shape::OperatorOrNone,
             "sub" | "div" | "floor_div" | "percent" | "bit_and" | "bit_or" | "bit_xor"
             | "left_shift" | "right_shift" => Shape::Operator,
             "plus" | "minus" | "bit_not" => Shape::UnaryOperator,

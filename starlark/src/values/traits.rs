@@ -840,6 +840,15 @@ pub trait StarlarkType<'v>: 'v + ProvidesStaticType<'v> + Debug + Display + Size
         sub_unsupported(self, other)
     }
 
+    /// Called on `rhs` of `lhs - rhs` when `lhs.sub` fails and `lhs` and `rhs` are of
+    /// different types. Should return [`None`] to keep the error of `lhs.sub`.
+    ///
+    /// In a `#[starlark_value]` block it is written with its types, as [`add`](Self::add) is.
+    fn rsub(&self, lhs: Value<'v>, heap: Heap<'v>) -> Option<crate::Result<Value<'v>>> {
+        let _ignore = (lhs, heap);
+        None
+    }
+
     /// Called on `rhs` of `lhs * rhs` when `lhs.mul` returns `None`.
     ///
     /// In a `#[starlark_value]` block it is written with its types, as [`add`](Self::add) is.
@@ -882,6 +891,15 @@ pub trait StarlarkType<'v>: 'v + ProvidesStaticType<'v> + Debug + Display + Size
     /// In a `#[starlark_value]` block it is written with its types, as [`add`](Self::add) is.
     fn div(&self, other: Value<'v>, _heap: Heap<'v>) -> crate::Result<Value<'v>> {
         div_unsupported(self, other)
+    }
+
+    /// Called on `rhs` of `lhs / rhs` when `lhs.div` fails and `lhs` and `rhs` are of
+    /// different types. Should return [`None`] to keep the error of `lhs.div`.
+    ///
+    /// In a `#[starlark_value]` block it is written with its types, as [`add`](Self::add) is.
+    fn rdiv(&self, lhs: Value<'v>, heap: Heap<'v>) -> Option<crate::Result<Value<'v>>> {
+        let _ignore = (lhs, heap);
+        None
     }
 
     /// Apply the percent operator between the current value and `other`. Usually used on
