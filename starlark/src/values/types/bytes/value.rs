@@ -37,6 +37,7 @@ use crate::values::StarlarkValue;
 use crate::values::Value;
 use crate::values::index::apply_slice;
 use crate::values::index::convert_index;
+use crate::values::index::repeat_count;
 
 /// The result of calling `type()` on bytes.
 pub const BYTES_TYPE: &str = "bytes";
@@ -89,9 +90,9 @@ impl StarlarkBytes {
     }
 
     /// The bytes `times` times over: `bytes * times` and `times * bytes`.
-    fn repeated(&self, times: i32) -> StarlarkBytes {
-        let count = cmp::max(0, times) as usize;
-        StarlarkBytes::from_vec(self.content.repeat(count))
+    fn repeated(&self, times: i32) -> crate::Result<StarlarkBytes> {
+        let count = repeat_count(self.content.len(), times)?;
+        Ok(StarlarkBytes::from_vec(self.content.repeat(count)))
     }
 }
 
@@ -256,11 +257,11 @@ impl<'v> StarlarkValue<'v> for StarlarkBytes {
     }
 
     /// `bytes * n` — repetition.
-    fn mul(&self, times: i32) -> StarlarkBytes {
+    fn mul(&self, times: i32) -> crate::Result<StarlarkBytes> {
         self.repeated(times)
     }
 
-    fn rmul(&self, times: i32) -> StarlarkBytes {
+    fn rmul(&self, times: i32) -> crate::Result<StarlarkBytes> {
         self.repeated(times)
     }
 }

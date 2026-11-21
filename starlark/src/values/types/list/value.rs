@@ -56,6 +56,7 @@ use crate::values::comparison::equals_slice;
 use crate::values::error::ValueError;
 use crate::values::index::apply_slice;
 use crate::values::index::convert_index;
+use crate::values::index::repeat_count;
 use crate::values::list::ListRef;
 use crate::values::list::ListType;
 
@@ -401,13 +402,18 @@ impl<'v> ListView<'v> {
     /// A list of the items `times` times over: `list * times` and `times * list`.
     // Inlined into `mul` and `rmul`, as `Tuple::repeated` is.
     #[inline(always)]
-    fn repeated(self, times: i32, heap: Heap<'v>) -> ValueOf<'v, ListType<Value<'v>>> {
+    fn repeated(
+        self,
+        times: i32,
+        heap: Heap<'v>,
+    ) -> crate::Result<ValueOf<'v, ListType<Value<'v>>>> {
         let content = self.content();
-        let mut result = Vec::with_capacity(content.len() * cmp::max(0, times) as usize);
-        for _ in 0..times {
+        let count = repeat_count(content.len(), times)?;
+        let mut result = Vec::with_capacity(content.len() * count);
+        for _ in 0..count {
             result.extend(content.iter());
         }
-        heap.alloc_list(&result)
+        Ok(heap.alloc_list(&result))
     }
 }
 
@@ -496,11 +502,11 @@ impl<'v> StarlarkType<'v> for ListView<'v> {
         heap.alloc_list_concat(self.content(), other.content())
     }
 
-    fn mul(&self, times: i32, heap: Heap<'v>) -> ValueOf<'v, ListType<Value<'v>>> {
+    fn mul(&self, times: i32, heap: Heap<'v>) -> crate::Result<ValueOf<'v, ListType<Value<'v>>>> {
         self.repeated(times, heap)
     }
 
-    fn rmul(&self, times: i32, heap: Heap<'v>) -> ValueOf<'v, ListType<Value<'v>>> {
+    fn rmul(&self, times: i32, heap: Heap<'v>) -> crate::Result<ValueOf<'v, ListType<Value<'v>>>> {
         self.repeated(times, heap)
     }
 
