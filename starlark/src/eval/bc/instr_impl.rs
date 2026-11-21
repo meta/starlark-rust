@@ -540,7 +540,8 @@ impl<'v> InstrNoFlowImpl<'v> for InstrEqStrImpl {
         let r = if let Some(a) = StringValue::new(a) {
             a == *b
         } else {
-            false
+            // A value of another type may be equal to a string: ask it, as `Value::equals` does.
+            a.equals(b.to_value())?
         };
         frame.set_bc_slot(*target, Value::new_bool(r));
         Ok(())
