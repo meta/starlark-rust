@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+use std::cmp;
+
 use crate::values::UnpackValue;
 use crate::values::Value;
 use crate::values::ValueError;
@@ -63,6 +65,19 @@ pub(crate) fn convert_index(x: i32, len: i32) -> crate::Result<i32> {
         Err(ValueError::IndexOutOfBound(i).into())
     } else {
         Ok(i)
+    }
+}
+
+/// How many copies of a sequence of `len` elements `seq * times` makes: `times`, or 0 if
+/// negative. Fails if the result would have more than `u32::MAX` elements, which is more than a
+/// string or a list can hold, so the result is never allocated.
+pub(crate) fn repeat_count(len: usize, times: i32) -> crate::Result<usize> {
+    let count = cmp::max(0, times) as usize;
+    match len.checked_mul(count) {
+        Some(n) if n <= u32::MAX as usize => Ok(count),
+        _ => Err(crate::Error::new_other(anyhow::anyhow!(
+            "excessive repeat ({len} * {times} elements)"
+        ))),
     }
 }
 
@@ -272,5 +287,24 @@ mod tests {
             // via string/tuple/list slicing would also go through same path; test direct apply_slice
             let _ = heap; // keep heap alive
         });
+    }
+
+    #[test]
+    fn test_repeat_too_long() {
+        // Each result is far more than a string or list can hold; reserving it up front
+        // aborted the process instead of failing.
+        for x in ["'abc'", "[1, 2, 3]", "(1, 2, 3)", "b'abc'"] {
+            crate::assert::fail(
+                &format!("{x} * 1000000 * 1000000"),
+                "excessive repeat (3000000 * 1000000 elements)",
+            );
+            crate::assert::fail(
+                &format!("1000000 * ({x} * 1000000)"),
+                "excessive repeat (3000000 * 1000000 elements)",
+            );
+            crate::assert::eq(&format!("len({x} * 3)"), "9");
+            crate::assert::eq(&format!("len({x} * -1)"), "0");
+        }
+        crate::assert::fail("'abc' * 2000000000", "excessive repeat");
     }
 }
