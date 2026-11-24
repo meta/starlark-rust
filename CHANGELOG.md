@@ -251,7 +251,7 @@ recursive-descent parser, and a significant rework of heap lifetimes.
 - Add a few more traits and functions to `SortedMap`.
 - Disable the legacy type representation, types as strings such as `"bool"` are
   no longer supported. See the revised
-  [typing documentation](https://github.com/facebookexperimental/starlark-rust/blob/main/docs/types.md).
+  [typing documentation](https://github.com/meta/starlark-rust/blob/main/docs/types.md).
 
 ## 0.10.0 (Oct 16, 2023)
 
