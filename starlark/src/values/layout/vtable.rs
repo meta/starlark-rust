@@ -632,6 +632,16 @@ impl<'v> AValueDynFull<'v> {
     }
 
     #[inline]
+    pub(crate) fn rsub(self, other: Value<'v>, heap: Heap<'v>) -> Option<crate::Result<Value<'v>>> {
+        (self.avalue.vtable.starlark_value.rsub)(self.avalue.value, self.value, other, heap)
+    }
+
+    #[inline]
+    pub(crate) fn rdiv(self, other: Value<'v>, heap: Heap<'v>) -> Option<crate::Result<Value<'v>>> {
+        (self.avalue.vtable.starlark_value.rdiv)(self.avalue.value, self.value, other, heap)
+    }
+
+    #[inline]
     pub(crate) fn div(self, other: Value<'v>, heap: Heap<'v>) -> crate::Result<Value<'v>> {
         (self.avalue.vtable.starlark_value.div)(self.value, other, heap)
     }

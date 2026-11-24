@@ -559,8 +559,34 @@ impl<'v> Value<'v> {
     }
 
     /// `x - other`.
+    ///
+    /// When `x.sub` fails and `other` is of a different type, `other.rsub(x)` gets a chance.
     pub fn sub(self, other: Value<'v>, heap: Heap<'v>) -> crate::Result<Value<'v>> {
-        self.get_ref().sub(other, heap)
+        match self.get_ref().sub(other, heap) {
+            Err(e) => self.reflected(other, e, |o| o.get_ref().rsub(self, heap)),
+            r => r,
+        }
+    }
+
+    /// The fallback of an operator that `self` failed with `other`: when the failure is that
+    /// the operation is not supported and the two are of different types, the reflected
+    /// operator of `other`; else, or when that is `None`, the original error. An error of the
+    /// operator's own body is never replaced.
+    #[cold]
+    fn reflected(
+        self,
+        other: Value<'v>,
+        error: crate::Error,
+        reflected: impl FnOnce(Value<'v>) -> Option<crate::Result<Value<'v>>>,
+    ) -> crate::Result<Value<'v>> {
+        let unsupported = matches!(
+            error.kind(),
+            crate::ErrorKind::RuntimeType(crate::RuntimeTypeErrorKind::Operation, _)
+        );
+        if !unsupported || self.get_type() == other.get_type() {
+            return Err(error);
+        }
+        reflected(other).unwrap_or(Err(error))
     }
 
     /// `x * other`.
@@ -580,8 +606,13 @@ impl<'v> Value<'v> {
     }
 
     /// `x / other`.
+    ///
+    /// When `x.div` fails and `other` is of a different type, `other.rdiv(x)` gets a chance.
     pub fn div(self, other: Value<'v>, heap: Heap<'v>) -> crate::Result<Value<'v>> {
-        self.get_ref().div(other, heap)
+        match self.get_ref().div(other, heap) {
+            Err(e) => self.reflected(other, e, |o| o.get_ref().rdiv(self, heap)),
+            r => r,
+        }
     }
 
     /// `x // other`.

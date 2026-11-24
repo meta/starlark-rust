@@ -568,6 +568,18 @@ impl<'v> StarlarkValue<'v> for Seconds {
         Ok(Seconds(self.0 - other.0))
     }
 
+    fn rsub(&self, total: i32) -> starlark::Result<Seconds> {
+        if self.0 > total {
+            return Err(starlark::Error::new_other(NegativeSpan));
+        }
+        Ok(Seconds(total - self.0))
+    }
+
+    /// `n / seconds`: a frequency, in hertz.
+    fn rdiv(&self, n: i32) -> f64 {
+        n as f64 / self.0 as f64
+    }
+
     fn div(&self, by: Either<&Self, i32>, _heap: Heap<'v>) -> Either<f64, Seconds> {
         match by {
             Either::Left(other) => Either::Left(self.0 as f64 / other.0 as f64),
@@ -638,6 +650,8 @@ fn test_operators() {
         assert_eq!("1s", shown(seconds(3).sub(seconds(2), heap)));
         assert_eq!("1.5", shown(seconds(3).div(seconds(2), heap)));
         assert_eq!("2s", shown(seconds(6).div(int(3), heap)));
+        assert_eq!("7s", shown(int(10).sub(seconds(3), heap)));
+        assert_eq!("2.5", shown(int(5).div(seconds(2), heap)));
         assert_eq!("6min", shown(seconds(6).percent(str("min"), heap)));
         assert_eq!("2s", shown(seconds(6).floor_div(int(3), heap)));
         assert_eq!("3", shown(seconds(6).bit_xor(int(3), heap)));
@@ -710,6 +724,18 @@ fn test_operator_errors() {
         assert!(e.contains("invalid digit"), "{e}");
         let e = error(seconds(1).minus(heap));
         assert!(e.contains("not negative"), "{e}");
+        // The body of a reflected operator is its error too.
+        let e = error(heap.alloc(1i32).to_value().sub(seconds(2), heap));
+        assert!(e.contains("not negative"), "{e}");
+        // An error of the left operand's body is not replaced by the right one's operator.
+        let e = error(seconds(1).div(big, heap));
+        assert!(e.contains("too big to fit in i32"), "{e}");
+        // A value the reflected operator does not take keeps the error of the operator.
+        let e = error(heap.alloc("x").to_value().sub(seconds(1), heap));
+        assert!(
+            e.contains("Operation `-` not supported for types `string` and `seconds`"),
+            "{e}"
+        );
     });
 }
 
@@ -752,7 +778,15 @@ fn test_operator_signatures() {
         reflected(TypingBinOp::Add)
     );
     assert_eq!(signature(Ty::int(), seconds()), reflected(TypingBinOp::Mul));
-    assert_eq!(Vec::<OperatorSignature>::new(), reflected(TypingBinOp::Sub));
+    assert_eq!(signature(Ty::int(), seconds()), reflected(TypingBinOp::Sub));
+    assert_eq!(
+        signature(Ty::int(), Ty::float()),
+        reflected(TypingBinOp::Div)
+    );
+    assert_eq!(
+        Vec::<OperatorSignature>::new(),
+        reflected(TypingBinOp::FloorDiv)
+    );
 
     assert_eq!(Some(seconds()), unary(TypingUnOp::Minus));
     assert_eq!(Some(Ty::any()), unary(TypingUnOp::Plus));

@@ -551,6 +551,8 @@ impl ImplStarlarkValue {
             vec![
                 self.operator_arm("Add", "radd", typed),
                 self.operator_arm("Mul", "rmul", typed),
+                self.operator_arm("Sub", "rsub", typed),
+                self.operator_arm("Div", "rdiv", typed),
             ],
             false,
         )
