@@ -69,6 +69,7 @@ use crate::values::bool::value::VALUE_FALSE_TRUE;
 use crate::values::dict::Dict;
 use crate::values::dict::value::DictGen;
 use crate::values::dict::value::VALUE_EMPTY_FROZEN_DICT;
+use crate::values::error::ControlError;
 use crate::values::function::BoundMethod;
 use crate::values::function::FUNCTION_TYPE;
 use crate::values::function::NativeFunction;
@@ -89,6 +90,7 @@ use crate::values::range::Range;
 use crate::values::recursive_repr_or_json_guard::JsonStackError;
 use crate::values::recursive_repr_or_json_guard::json_stack_push;
 use crate::values::recursive_repr_or_json_guard::repr_stack_push;
+use crate::values::recursive_repr_or_json_guard::stack_is_low_sampled;
 use crate::values::stack_guard;
 use crate::values::starlark_type_id::StarlarkTypeId;
 use crate::values::string::str_type::StarlarkStr;
@@ -941,6 +943,12 @@ impl<'v> Value<'v> {
 
     /// Hash the value.
     pub fn write_hash(self, hasher: &mut StarlarkHasher) -> crate::Result<()> {
+        // Containers hash their elements through here, so this is where a deeply nested value
+        // would otherwise recurse until the native stack runs out. Ints and strings, the usual
+        // elements, contain nothing, so they skip the check.
+        if self.unpack_inline_int().is_none() && !self.is_str() && stack_is_low_sampled() {
+            return Err(crate::Error::new_other(ControlError::TooManyRecursionLevel));
+        }
         self.get_ref().write_hash(hasher)
     }
 
@@ -1202,6 +1210,7 @@ mod tests {
     use crate::assert;
     use crate::environment::Globals;
     use crate::typing::Ty;
+    use crate::values::Freezer;
     use crate::values::Heap;
     use crate::values::Value;
     use crate::values::int::pointer_i32::PointerI32;
@@ -1360,5 +1369,64 @@ mod tests {
                 .contains("Value `function (repr: bool)` is not compatible with"),
             "{e}"
         );
+    }
+
+    /// Deep enough that walking it recursively runs out of any stack we might run on.
+    const TOO_DEEP: usize = 1_000_000;
+
+    /// `((None,),)`, nested `depth` times.
+    fn nested_tuple<'v>(heap: Heap<'v>, depth: usize) -> Value<'v> {
+        let mut x = Value::new_none();
+        for _ in 0..depth {
+            x = heap.alloc((x,)).to_value();
+        }
+        x
+    }
+
+    #[test]
+    fn test_repr_deeply_nested() {
+        Heap::temp(|heap| {
+            // Levels too deep to print are elided like a cycle rather than overflowing the stack.
+            let x = nested_tuple(heap, TOO_DEEP);
+            for s in [x.to_repr(), x.to_str()] {
+                assert!(s.starts_with("(((") && s.contains("(...)"), "{}", &s[..40]);
+            }
+
+            // Ordinary nesting is unaffected.
+            let expected = format!("{}None{}", "(".repeat(50), ",)".repeat(50));
+            assert_eq!(expected, nested_tuple(heap, 50).to_repr());
+        });
+    }
+
+    #[test]
+    fn test_hash_deeply_nested() {
+        Heap::temp(|heap| {
+            // Too deep to hash is an error, as too deep to compare is.
+            let e = nested_tuple(heap, TOO_DEEP).get_hashed().unwrap_err();
+            assert!(e.to_string().contains("Too many recursion levels"), "{e}");
+
+            // Ordinary nesting is unaffected.
+            nested_tuple(heap, 50).get_hashed().unwrap();
+        });
+    }
+
+    #[test]
+    fn test_freeze_deeply_nested() {
+        // Ordinary nesting is unaffected.
+        Freezer::testing_temp(|heap, freezer| {
+            let x = freezer.freeze(nested_tuple(heap, 50)).unwrap();
+            assert_eq!(nested_tuple(heap, 50).to_repr(), x.to_repr());
+        });
+
+        Freezer::testing_temp(|heap, freezer| {
+            let e = freezer.freeze(nested_tuple(heap, TOO_DEEP)).unwrap_err();
+            assert!(
+                e.err_msg.contains("nested too deeply to freeze"),
+                "{}",
+                e.err_msg
+            );
+            let following = freezer.frozen_heap().alloc("after failed freeze");
+            assert_eq!("after failed freeze", following.as_str());
+        });
     }
 }
