@@ -64,6 +64,10 @@ impl<'v> ValueNotSpecial<'v> {
     #[inline]
     fn equals_not_ptr_eq(self, other: Value<'v>) -> crate::Result<bool> {
         let _guard = stack_guard::stack_guard()?;
-        self.get_ref().equals(other)
+        match self.get_ref().equals(other) {
+            // As in `Value::equals`: a right operand of another type is asked too.
+            Ok(false) if self.0.get_type() != other.get_type() => other.get_ref().equals(self.0),
+            r => r,
+        }
     }
 }

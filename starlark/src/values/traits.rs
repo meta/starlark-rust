@@ -473,6 +473,11 @@ pub trait StarlarkType<'v>:
     /// When evaluating `a == b` (or when using equality in dicts and such),
     /// it is not specified whether `a.equals(b)` or `b.equals(a)` is called.
     ///
+    /// When `a.equals(b)` is `false` and `a` and `b` are of different types, `b.equals(a)` is
+    /// asked too, so a type can be equal to a value of a type that does not know it, such as
+    /// `int`: `1 == x` is then `x.equals(1)`. A type that is equal to values of other types
+    /// must hash as they do, to be found in a dict by them.
+    ///
     /// # In a `#[starlark_value]` block
     ///
     /// The method is written with the operand it compares with, and the plain result if it
